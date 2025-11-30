@@ -53,7 +53,7 @@ class ProductViewShop extends StatelessWidget {
                       children: [
                         Text(data.title!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
                         const SizedBox(height: 4),
-                        Text('\${data.price}', style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
+                        Text('\$${data.price}', style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),

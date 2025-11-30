@@ -14,22 +14,52 @@ class ShopPage extends StatefulWidget {
 
 class _ShopPageState extends State<ShopPage> {
 
- Future<List<ProductModel>> _getData()  async {
-    String res = await DefaultAssetBundle.of(context).loadString("assets/products.json");
-    List<ProductModel> data= ProductModel.fromList(jsonDecode(res));
-    // ignore: use_build_context_synchronously
-    Provider.of<Global_provider>(context, listen: false).setProducts(data);
-    // ignore: use_build_context_synchronously
-    return Provider.of<Global_provider>(context, listen: false).products;
-    
+  Future<List<ProductModel>> _getData() async {
+    try {
+      String res = await DefaultAssetBundle.of(context).loadString("assets/products.json");
+      List<dynamic> jsonData = jsonDecode(res);
+      List<ProductModel> data = ProductModel.fromList(jsonData);
+      
+      // Set products in provider
+      if (mounted) {
+        Provider.of<Global_provider>(context, listen: false).setProducts(data);
+      }
+      
+      return data;
+    } catch (e) {
+      print('Error loading products: $e');
+      return [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: _getData(),
-      builder: ((context, snapshot) {
-        if (snapshot.hasData) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Дэлгүүр'),
+        centerTitle: true,
+      ),
+      body: FutureBuilder(
+        future: _getData(),
+        builder: ((context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+          
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Алдаа гарлаа: ${snapshot.error}'),
+            );
+          }
+          
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text('Бараа олдсонгүй'),
+            );
+          }
+          
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,16 +92,8 @@ class _ShopPageState extends State<ShopPage> {
               ],
             ),
           );
-        } else {
-          return const Center(
-            child: SizedBox(
-              height:25,
-              width: 25,
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-      }),
+        }),
+      ),
     );
   }
-  }
+}

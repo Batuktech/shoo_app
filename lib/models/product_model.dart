@@ -26,12 +26,13 @@ class ProductModel {
   });
 
  
-  ProductModel fromJson(Map<String, dynamic> json) {
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
     return _$ProductModelFromJson(json);
   }
   
 
-  static List<ProductModel> fromList(List<dynamic> data) => data.map((e) => ProductModel().fromJson(e)).toList();
+  static List<ProductModel> fromList(List<dynamic> data) => 
+    data.map((e) => ProductModel.fromJson(e)).toList();
   
   Map<String, dynamic> toJson() {
     throw UnimplementedError();
