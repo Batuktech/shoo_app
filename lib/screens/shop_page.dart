@@ -13,86 +13,71 @@ class ShopPage extends StatefulWidget {
 }
 
 class _ShopPageState extends State<ShopPage> {
+  bool _isLoaded = false;
 
-  Future<List<ProductModel>> _getData() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (_isLoaded) return;
+    
     try {
       String res = await DefaultAssetBundle.of(context).loadString("assets/products.json");
       List<dynamic> jsonData = jsonDecode(res);
       List<ProductModel> data = ProductModel.fromList(jsonData);
       
-      // Set products in provider
       if (mounted) {
         Provider.of<Global_provider>(context, listen: false).setProducts(data);
+        setState(() {
+          _isLoaded = true;
+        });
       }
-      
-      return data;
     } catch (e) {
-      print('Error loading products: $e');
-      return [];
+      print('Error: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Дэлгүүр'),
-        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Products',
+          style: TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black),
+            onPressed: () {},
+          ),
+        ],
       ),
-      body: FutureBuilder(
-        future: _getData(),
-        builder: ((context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+      body: Consumer<Global_provider>(
+        builder: (context, provider, child) {
+          if (provider.products.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
           }
-          
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Алдаа гарлаа: ${snapshot.error}'),
-            );
-          }
-          
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('Бараа олдсонгүй'),
-            );
-          }
-          
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 10),
-                  child: Text(
-                    "Бараанууд",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(223, 37, 37, 37),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: Wrap(
-                    spacing: 20,
-                    runSpacing: 10,
-                    children: List.generate(
-                      snapshot.data!.length,
-                      (index) => ProductViewShop(snapshot.data![index]),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.8,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
             ),
+            itemCount: provider.products.length,
+            itemBuilder: (context, index) {
+              return ProductViewShop(provider.products[index]);
+            },
           );
-        }),
+        },
       ),
     );
   }
