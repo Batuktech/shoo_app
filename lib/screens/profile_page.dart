@@ -19,18 +19,8 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadUsers();
   }
 
-  Future<void> _loadUsers() async {
-    String res = await DefaultAssetBundle.of(context).loadString("assets/users.json");
-    List<dynamic> jsonData = jsonDecode(res);
-    if (mounted) {
-      Provider.of<Global_provider>(context, listen: false).setUsers(
-        jsonData.map((e) => UserModel.fromJson(e)).toList(),
-      );
-    }
-  }
 
   void _showLanguageDialog() {
     final provider = Provider.of<Global_provider>(context, listen: false);

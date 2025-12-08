@@ -1,0 +1,68 @@
+https://fakestoreapi.com/auth/login
+{
+  "username": "mor_2314",
+  "password": "83r5^_"
+}
+
+post
+
+
+https://fakestoreapi.com/users/1
+
+get
+
+https://fakestoreapi.com/carts/user/1
+
+get
+
+https://fakestoreapi.com/carts
+
+{
+  "userId": 1,
+  "date": "2024-12-08",
+  "products": [
+    {
+      "productId": 5,
+      "quantity": 2
+    }
+  ]
+}
+
+post
+
+
+https://fakestoreapi.com/carts/1
+
+{
+  "userId": 1,
+  "date": "2024-12-08",
+  "products": [
+    {
+      "productId": 5,
+      "quantity": 3
+    }
+  ]
+}
+
+put
+
+
+https://fakestoreapi.com/carts/6
+
+none 
+
+delete
+
+https://fakestoreapi.com/products
+
+none
+
+get
+
+
+https://fakestoreapi.com/products/1
+
+none
+
+get 
+

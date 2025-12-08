@@ -8,117 +8,219 @@ class Global_provider extends ChangeNotifier {
   List<ProductModel> products = [];
   List<ProductModel> cartItems = [];
   List<ProductModel> favoriteItems = [];
-  List<UserModel> users = [];
+
   UserModel? currentUser;
-  int currentIdx = 0;
+  int? _currentCartId;
+
   Locale _locale = const Locale('en');
+  int currentIdx = 0;
+
   bool _isProductsLoaded = false;
+  bool isLoggedIn = false;
 
   Locale get locale => _locale;
+  bool get isProductsLoaded => _isProductsLoaded;
 
+  // -------------------------------------------------------------
+  // PRODUCT LOADING
+  // -------------------------------------------------------------
   void setProducts(List<ProductModel> data) {
     products = data;
     _isProductsLoaded = true;
     notifyListeners();
   }
 
-  bool get isProductsLoaded => _isProductsLoaded;
-
-  void setUsers(List<UserModel> data) {
-    users = data;
+  // get user by ID from API
+Future<void> loadUser(int id) async {
+  final user = await ApiService.getUser(id);
+  if (user != null) {
+    currentUser = user;
     notifyListeners();
   }
+}
 
-  Future<bool> login(String username, String password) async {
-    try {
-      // Call API to get token
-      final token = await ApiService.login(username, password);
-      
-      if (token != null) {
-        // Find user from local data
-        currentUser = users.firstWhere(
-          (user) => user.username == username && user.password == password,
-        );
-        
-        // Load user's cart from API
-        if (currentUser?.id != null) {
-          await loadUserCart(currentUser!.id!);
+
+
+  // -------------------------------------------------------------
+  // LOGIN (FAKESTORE API)
+  // -------------------------------------------------------------
+    Future<bool> login(String username, String password) async {
+      try {
+        final token = await ApiService.login(username, password);
+
+        if (token == null) return false;
+
+        // Save token
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("auth_token", token);
+
+        // FakeStore always logs in as USER ID = 2
+        final user = await ApiService.getUser(2);
+
+        if (user == null) {
+          return false;
         }
-        
+
+        currentUser = user;
+        isLoggedIn = true;
+
+        await loadUserCart(2);
+
         notifyListeners();
         return true;
-      }
-      return false;
-    } catch (e) {
-      print('Login error: $e');
-      return false;
-    }
-  }
 
+      } catch (e) {
+        print("LOGIN ERROR: $e");
+        return false;
+      }
+    }
+
+
+  
+
+
+  // -------------------------------------------------------------
+  // LOAD USER CART FROM API
+  // -------------------------------------------------------------
   Future<void> loadUserCart(int userId) async {
     try {
       final cartData = await ApiService.getUserCart(userId);
-      if (cartData != null && cartData.isNotEmpty) {
-        // Clear current cart
-        cartItems.clear();
-        
-        // Load cart items
-        final cart = cartData[0];
-        final cartProducts = cart['products'] as List;
-        
-        for (var item in cartProducts) {
-          final productId = item['productId'];
-          final quantity = item['quantity'];
-          
-          // Find product in local products list
-          final product = products.firstWhere(
-            (p) => p.id == productId,
-            orElse: () => products[0],
+
+      if (cartData == null || cartData.isEmpty) return;
+
+      cartItems.clear();
+
+      final cart = cartData[0];
+      _currentCartId = cart["id"];
+      final items = cart["products"] as List;
+
+      for (var item in items) {
+        final productId = item["productId"];
+        final quantity = item["quantity"];
+
+        try {
+          final product = products.firstWhere((p) => p.id == productId);
+
+          cartItems.add(
+            ProductModel(
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              description: product.description,
+              category: product.category,
+              image: product.image,
+              rating: product.rating,
+              count: quantity,
+              isFavorite: product.isFavorite,
+            ),
           );
-          
-          // Add to cart with quantity
-          product.count = quantity;
-          cartItems.add(product);
+        } catch (_) {
+          print("Product $productId not found locally");
         }
-        
-        notifyListeners();
       }
+
+      notifyListeners();
     } catch (e) {
-      print('Load cart error: $e');
+      print("LOAD CART ERROR: $e");
     }
   }
 
-  void logout() {
+  // -------------------------------------------------------------
+  // LOGOUT
+  // -------------------------------------------------------------
+  void logout() async {
     currentUser = null;
     cartItems.clear();
     favoriteItems.clear();
-    ApiService.clearToken();
+    _currentCartId = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("auth_token");
+
+    isLoggedIn = false;
+
     notifyListeners();
   }
 
-  bool get isLoggedIn => currentUser != null;
-
+  // -------------------------------------------------------------
+  // CART OPERATIONS
+  // -------------------------------------------------------------
   Future<void> addCartItems(ProductModel item) async {
     final index = cartItems.indexWhere((i) => i.id == item.id);
-    
+
     if (index != -1) {
+      // Remove from local cart
       cartItems.removeAt(index);
-      if (currentUser?.id != null) {
-        // Call API to remove from cart
-        await ApiService.removeFromCart(item.id!);
+
+      if (_currentCartId != null) {
+        await ApiService.removeFromCart(_currentCartId!);
       }
     } else {
       cartItems.add(item);
+
       if (currentUser?.id != null) {
-        // Call API to add to cart
-        await ApiService.addToCart(currentUser!.id!, item.id!, item.count);
+        final result = await ApiService.addToCart(
+            currentUser!.id!, item.id!, item.count);
+
+        if (result != null && result["id"] != null) {
+          _currentCartId = result["id"];
+        }
       }
     }
+
     notifyListeners();
   }
 
+  bool isInCart(ProductModel item) {
+    return cartItems.any((i) => i.id == item.id);
+  }
+
+  void increaseQuantity(ProductModel item) {
+    final index = cartItems.indexWhere((i) => i.id == item.id);
+    if (index == -1) return;
+
+    cartItems[index].count++;
+
+    ApiService.updateCartItem(
+      currentUser!.id!,
+      item.id!,
+      cartItems[index].count,
+    );
+
+    notifyListeners();
+  }
+
+  void decreaseQuantity(ProductModel item) {
+    final index = cartItems.indexWhere((i) => i.id == item.id);
+    if (index == -1 || cartItems[index].count <= 1) return;
+
+    cartItems[index].count--;
+
+    ApiService.updateCartItem(
+      currentUser!.id!,
+      item.id!,
+      cartItems[index].count,
+    );
+
+    notifyListeners();
+  }
+
+  Future<void> removeFromCart(ProductModel item) async {
+    cartItems.removeWhere((i) => i.id == item.id);
+
+    if (_currentCartId != null) {
+      await ApiService.removeFromCart(_currentCartId!);
+    }
+
+    notifyListeners();
+  }
+
+  // -------------------------------------------------------------
+  // FAVORITES
+  // -------------------------------------------------------------
   void toggleFavorite(ProductModel item) {
     final index = favoriteItems.indexWhere((i) => i.id == item.id);
+
     if (index != -1) {
       favoriteItems.removeAt(index);
       item.isFavorite = false;
@@ -133,51 +235,27 @@ class Global_provider extends ChangeNotifier {
     return favoriteItems.any((i) => i.id == item.id);
   }
 
-  bool isInCart(ProductModel item) {
-    return cartItems.any((i) => i.id == item.id);
-  }
-
+  // -------------------------------------------------------------
+  // UI CONTROLS
+  // -------------------------------------------------------------
   void changeCurrentIdx(int idx) {
     currentIdx = idx;
     notifyListeners();
   }
 
-  void increaseQuantity(ProductModel item) {
-    final index = cartItems.indexWhere((i) => i.id == item.id);
-    if (index != -1) {
-      cartItems[index].count++;
-      notifyListeners();
-    }
-  }
-
-  void decreaseQuantity(ProductModel item) {
-    final index = cartItems.indexWhere((i) => i.id == item.id);
-    if (index != -1 && cartItems[index].count > 1) {
-      cartItems[index].count--;
-      notifyListeners();
-    }
-  }
-
-  Future<void> removeFromCart(ProductModel item) async {
-    cartItems.removeWhere((i) => i.id == item.id);
-    if (currentUser?.id != null) {
-      await ApiService.removeFromCart(item.id!);
-    }
-    notifyListeners();
-  }
-
-  // Language settings
-  Future<void> changeLanguage(String languageCode) async {
-    _locale = Locale(languageCode);
+  // -------------------------------------------------------------
+  // LANGUAGE SETTINGS
+  // -------------------------------------------------------------
+  Future<void> changeLanguage(String code) async {
+    _locale = Locale(code);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', languageCode);
+    await prefs.setString('language', code);
     notifyListeners();
   }
 
   Future<void> loadLanguage() async {
     final prefs = await SharedPreferences.getInstance();
-    final languageCode = prefs.getString('language') ?? 'en';
-    _locale = Locale(languageCode);
+    _locale = Locale(prefs.getString('language') ?? 'en');
     notifyListeners();
   }
 }
