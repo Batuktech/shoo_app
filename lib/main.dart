@@ -3,22 +3,39 @@ import 'package:provider/provider.dart';
 import 'package:shop_app/provider/globalProvider.dart';
 import '../../../screens/home_page.dart';
 
-void main() {
-  runApp(ChangeNotifierProvider(
-      create: (context) => Global_provider(),
-      child: const MyApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final provider = Global_provider();
+  await provider.loadLanguage();
+  
+  runApp(
+    ChangeNotifierProvider.value(
+      value: provider,
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-    @override
+  @override
   Widget build(BuildContext context) {
-       return MaterialApp(
-                theme: ThemeData(
-                useMaterial3: false,
-                ),
-                home: HomePage(),
-              );
+    return Consumer<Global_provider>(
+      builder: (context, provider, child) {
+        return MaterialApp(
+          locale: provider.locale,
+          supportedLocales: const [
+            Locale('en', ''),
+            Locale('mn', ''),
+          ],
+          theme: ThemeData(
+            useMaterial3: false,
+          ),
+          home: HomePage(),
+        );
+      },
+    );
   }
 }

@@ -32,10 +32,50 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  void _showLanguageDialog() {
+    final provider = Provider.of<Global_provider>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Language'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('English'),
+              leading: Radio<String>(
+                value: 'en',
+                groupValue: provider.locale.languageCode,
+                onChanged: (value) {
+                  provider.changeLanguage(value!);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            ListTile(
+              title: const Text('Монгол'),
+              leading: Radio<String>(
+                value: 'mn',
+                groupValue: provider.locale.languageCode,
+                onChanged: (value) {
+                  provider.changeLanguage(value!);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Global_provider>(
       builder: (context, provider, child) {
+        final isMongolian = provider.locale.languageCode == 'mn';
+        
         // Login Screen
         if (!provider.isLoggedIn) {
           return Scaffold(
@@ -43,7 +83,10 @@ class _ProfilePageState extends State<ProfilePage> {
             appBar: AppBar(
               backgroundColor: Colors.white,
               elevation: 0,
-              title: const Text('Profile', style: TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold)),
+              title: Text(
+                isMongolian ? 'Профайл' : 'Profile',
+                style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
             ),
             body: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -63,7 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   TextField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      labelText: 'Username',
+                      labelText: isMongolian ? 'Хэрэглэгчийн нэр' : 'Username',
                       prefixIcon: const Icon(Icons.person_outline),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
@@ -75,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     controller: _passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: isMongolian ? 'Нууц үг' : 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
@@ -88,15 +131,25 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : () async {
                         setState(() => _isLoading = true);
-                        await Future.delayed(const Duration(milliseconds: 300));
                         
-                        if (provider.login(_usernameController.text, _passwordController.text)) {
+                        final success = await provider.login(
+                          _usernameController.text,
+                          _passwordController.text,
+                        );
+                        
+                        if (success) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Login successful!'), backgroundColor: Colors.green),
+                            SnackBar(
+                              content: Text(isMongolian ? 'Амжилттай нэвтэрлээ!' : 'Login successful!'),
+                              backgroundColor: Colors.green,
+                            ),
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invalid username or password'), backgroundColor: Colors.red),
+                            SnackBar(
+                              content: Text(isMongolian ? 'Нэр эсвэл нууц үг буруу байна' : 'Invalid username or password'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                         }
                         
@@ -109,7 +162,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: _isLoading 
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('LOGIN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        : Text(isMongolian ? 'НЭВТРЭХ' : 'LOGIN', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -126,11 +179,17 @@ class _ProfilePageState extends State<ProfilePage> {
                           children: [
                             Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
                             const SizedBox(width: 8),
-                            Text('Test Account', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[700])),
+                            Text(isMongolian ? 'Туршилтын бүртгэл' : 'Test Account', 
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[700])),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text('Username: johnd\nPassword: m38rmF\$', style: TextStyle(color: Colors.blue[900], fontSize: 13)),
+                        Text(
+                          isMongolian 
+                            ? 'Хэрэглэгчийн нэр: mor_2314\nНууц үг: 83r5^_'
+                            : 'Username: mor_2314\nPassword: 83r5^_',
+                          style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                        ),
                       ],
                     ),
                   ),
@@ -147,7 +206,10 @@ class _ProfilePageState extends State<ProfilePage> {
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
-            title: const Text('My Profile', style: TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold)),
+            title: Text(
+              isMongolian ? 'Миний профайл' : 'My Profile',
+              style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
+            ),
           ),
           body: Column(
             children: [
@@ -173,12 +235,31 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildMenuItem(Icons.shopping_bag_outlined, 'My orders', () {}),
-              _buildMenuItem(Icons.location_on_outlined, 'Shipping addresses', () {}),
-              _buildMenuItem(Icons.payment_outlined, 'Payment methods', () {}),
-              _buildMenuItem(Icons.local_offer_outlined, 'Promotion codes', () {}),
-              _buildMenuItem(Icons.star_outline, 'My reviews', () {}),
-              _buildMenuItem(Icons.settings_outlined, 'Settings', () {}),
+              _buildMenuItem(
+                Icons.shopping_bag_outlined,
+                isMongolian ? 'Миний захиалгууд' : 'My orders',
+                () {},
+              ),
+              _buildMenuItem(
+                Icons.location_on_outlined,
+                isMongolian ? 'Хүргэлтийн хаяг' : 'Shipping addresses',
+                () {},
+              ),
+              _buildMenuItem(
+                Icons.payment_outlined,
+                isMongolian ? 'Төлбөрийн хэрэгслүүд' : 'Payment methods',
+                () {},
+              ),
+              _buildMenuItem(
+                Icons.language,
+                isMongolian ? 'Хэл солих' : 'Change Language',
+                _showLanguageDialog,
+              ),
+              _buildMenuItem(
+                Icons.settings_outlined,
+                isMongolian ? 'Тохиргоо' : 'Settings',
+                () {},
+              ),
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -188,7 +269,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     onPressed: () {
                       provider.logout();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Logged out successfully')),
+                        SnackBar(content: Text(isMongolian ? 'Амжилттай гарлаа' : 'Logged out successfully')),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -196,7 +277,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('LOGOUT', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      isMongolian ? 'ГАРАХ' : 'LOGOUT',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
